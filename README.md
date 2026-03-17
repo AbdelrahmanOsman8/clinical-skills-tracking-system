@@ -29,5 +29,5 @@ Skill tracking is vital for healthcare professionals to ensure continuous learni
 - Track skill certifications and expiry dates
 
 ## Author
-Abdelrahman Ahmed  
+Abdelrahman Osman  
 Health Informatics Student
