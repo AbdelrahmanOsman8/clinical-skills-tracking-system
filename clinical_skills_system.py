@@ -3,103 +3,91 @@ import sqlite3
 db = sqlite3.connect("clinical_skills.db")
 cr = db.cursor()
 
-def commit_and_close():
-    db.commit()
-    db.close()
-    print("Database connection closed")
+cr.execute("""
+CREATE TABLE IF NOT EXISTS skills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    progress INTEGER,
+    user_id INTEGER
+)
+""")
 
 staff_id = 1
-
-input_message = """
-
-Clinical Skills Management System
-
-What do you want to do?
-
-s → Show all clinical skills
-a → Add a new clinical skill
-d → Delete a skill
-u → Update skill progress
-q → Quit
-
-Choose option:
-"""
-
-user_input = input(input_message).strip().lower()
-
-commands_list = ["s", "a", "d", "u", "q"]
 
 def show_skills():
     cr.execute("SELECT name, progress FROM skills WHERE user_id = ?", (staff_id,))
     results = cr.fetchall()
 
-    print(f"\nYou have {len(results)} clinical skills recorded:")
-
-    if len(results) == 0:
-        print("No clinical skills recorded yet.")
+    if not results:
+        print("No skills found.")
     else:
         for skill in results:
-            print(f"Skill: {skill[0]} | Progress: {skill[1]}")
-
-    commit_and_close()
+            print(f"{skill[0]} - {skill[1]}%")
 
 def add_skill():
-    skill = input("Enter clinical skill name: ").strip().capitalize()
+    skill = input("Enter skill: ").strip().lower()
 
-    cr.execute("SELECT name FROM skills WHERE name = ? AND user_id = ?", (skill, staff_id))
-    result = cr.fetchone()
+    cr.execute("SELECT * FROM skills WHERE name = ? AND user_id = ?", (skill, staff_id))
+    if cr.fetchone():
+        print("Skill exists.")
+        return
 
-    if result:
-        print("Skill already exists.")
-    else:
-        progress = input("Enter training progress (%): ").strip()
-        cr.execute(
-            "INSERT INTO skills (name, progress, user_id) VALUES (?, ?, ?)",
-            (skill, progress, staff_id)
-        )
-        print("Clinical skill added.")
+    while True:
+        progress = input("Enter progress (0-100): ")
+        if progress.isdigit() and 0 <= int(progress) <= 100:
+            break
+        print("Invalid input.")
 
-    commit_and_close()
+    cr.execute("INSERT INTO skills (name, progress, user_id) VALUES (?, ?, ?)",
+               (skill, progress, staff_id))
+    db.commit()
+    print("Skill added.")
 
 def delete_skill():
-    skill = input("Enter clinical skill name to delete: ").strip().capitalize()
+    skill = input("Enter skill: ").strip().lower()
 
-    cr.execute(
-        "DELETE FROM skills WHERE name = ? AND user_id = ?",
-        (skill, staff_id)
-    )
+    cr.execute("DELETE FROM skills WHERE name = ? AND user_id = ?", (skill, staff_id))
+    db.commit()
 
-    print("Skill removed.")
-    commit_and_close()
+    if cr.rowcount:
+        print("Deleted.")
+    else:
+        print("Not found.")
 
 def update_skill():
-    skill = input("Enter clinical skill name: ").strip().capitalize()
-    progress = input("Enter new progress (%): ").strip()
+    skill = input("Enter skill: ").strip().lower()
+    progress = input("Enter new progress: ")
 
-    cr.execute(
-        "UPDATE skills SET progress = ? WHERE name = ? AND user_id = ?",
-        (progress, skill, staff_id)
-    )
+    cr.execute("UPDATE skills SET progress = ? WHERE name = ? AND user_id = ?",
+               (progress, skill, staff_id))
+    db.commit()
 
-    print("Skill progress updated.")
-    commit_and_close()
-
-if user_input in commands_list:
-
-    if user_input == "s":
-        show_skills()
-
-    elif user_input == "a":
-        add_skill()
-
-    elif user_input == "d":
-        delete_skill()
-
-    elif user_input == "u":
-        update_skill()
-
+    if cr.rowcount:
+        print("Updated.")
     else:
-        print("Exiting system")
+        print("Not found.")
 
-else:
-    print("Invalid command")
+
+while True:
+    choice = input("""
+s → Show
+a → Add
+d → Delete
+u → Update
+q → Quit
+""").lower()
+
+    if choice == "s":
+        show_skills()
+    elif choice == "a":
+        add_skill()
+    elif choice == "d":
+        delete_skill()
+    elif choice == "u":
+        update_skill()
+    elif choice == "q":
+        print("Bye")
+        db.close()
+        break
+    else:
+        print("Invalid")
